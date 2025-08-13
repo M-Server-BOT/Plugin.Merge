@@ -33,7 +33,7 @@ public class MergeHandler
         }
         
         List<string> finalFiles = _merge.FinalFiles.ToList();
-        
+
         FileScanner scanner = new(_merge.InputPaths, "*.cs", _merge.IgnorePaths, _merge.IgnoreFiles.Concat(finalFiles));
         foreach (ScannedFile file in scanner.ScanFiles())
         {
@@ -45,6 +45,19 @@ public class MergeHandler
         await Task.WhenAll(_files.Select(f => f.ProcessFile(_config.PlatformSettings, options))).ConfigureAwait(false);
 
         _files = _files.Where(f => !f.IsExcludedFile()).OrderBy(f => f.Order).ToList();
+
+        if (string.IsNullOrWhiteSpace(_merge.PluginName))
+        {
+            FileHandler plugin = _files.FirstOrDefault(f => f.PluginData is { Title: not null, Description: not null });
+            if (plugin?.PluginData is not null)
+            {
+                _merge.PluginName = plugin.PluginData.ClassName;
+            }
+        }
+
+        finalFiles = _merge.FinalFiles.ToList();
+        string[] finalPaths = finalFiles.Select(f => f.ToFullPath()).ToArray();
+        _files.RemoveAll(f => finalPaths.Contains(f.FilePath.ToFullPath()));
 
         FileCreator creator = new(_config, _files);
         if (!creator.Create())
