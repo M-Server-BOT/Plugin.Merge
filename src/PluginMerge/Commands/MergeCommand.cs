@@ -102,7 +102,7 @@ public class MergeCommand : BaseCommand<MergeCommand>
 
         try
         {
-            CompileHandler compile = new(config.Merge.FinalFiles.FirstOrDefault(), config);
+            CompileHandler compile = new(config.Merge.GetFinalFiles().FirstOrDefault(), config);
             await compile.Run().ConfigureAwait(false);
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace PluginMerge.Merge;
@@ -23,17 +24,35 @@ public class MergeHandler
         _logger.LogInformation("Starting Plugin Merge Version: {Version} Mode: {Mode}", typeof(Program).Assembly.GetName().Version, _merge.CreatorMode);
         _logger.LogInformation("Input Paths: {Input}", string.Join(", ", _merge.InputPaths.Select(p => p.ToFullPath())));
         
-        foreach (string path in _merge.OutputPaths)
+        for (int i = 0; i < _merge.OutputPaths.Count; i++)
         {
-            if (!string.IsNullOrEmpty(path) && !Directory.Exists(path))
+            string path = _merge.OutputPaths[i];
+            if (string.IsNullOrEmpty(path))
+            {
+                continue;
+            }
+
+            if (Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                string fileName = Path.GetFileName(path);
+                if (string.IsNullOrWhiteSpace(_merge.PluginName))
+                {
+                    _merge.PluginName = Path.GetFileNameWithoutExtension(fileName);
+                }
+
+                path = Path.GetDirectoryName(path) ?? string.Empty;
+                _merge.OutputPaths[i] = path;
+            }
+
+            if (!Directory.Exists(path))
             {
                 _logger.LogDebug("Output path doesn't exist. Creating output path: {Path}", path);
                 Directory.CreateDirectory(path);
             }
         }
-        
-        List<string> finalFiles = _merge.FinalFiles.ToList();
-        
+
+        List<string> finalFiles = _merge.GetFinalFiles().ToList();
+
         FileScanner scanner = new(_merge.InputPaths, "*.cs", _merge.IgnorePaths, _merge.IgnoreFiles.Concat(finalFiles));
         foreach (ScannedFile file in scanner.ScanFiles())
         {
@@ -45,6 +64,19 @@ public class MergeHandler
         await Task.WhenAll(_files.Select(f => f.ProcessFile(_config.PlatformSettings, options))).ConfigureAwait(false);
 
         _files = _files.Where(f => !f.IsExcludedFile()).OrderBy(f => f.Order).ToList();
+
+        if (string.IsNullOrWhiteSpace(_merge.PluginName))
+        {
+            FileHandler plugin = _files.FirstOrDefault(f => f.PluginData is { Title: not null, Description: not null });
+            if (plugin?.PluginData is not null)
+            {
+                _merge.PluginName = plugin.PluginData.ClassName;
+            }
+        }
+
+        finalFiles = _merge.GetFinalFiles().ToList();
+        string[] finalPaths = finalFiles.Select(f => f.ToFullPath()).ToArray();
+        _files.RemoveAll(f => finalPaths.Contains(f.FilePath.ToFullPath()));
 
         FileCreator creator = new(_config, _files);
         if (!creator.Create())
