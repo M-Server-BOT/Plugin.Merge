@@ -32,9 +32,7 @@ public class MergeHandler
             }
         }
         
-        List<string> finalFiles = _merge.GetFinalFiles().ToList();
-
-        FileScanner scanner = new(_merge.InputPaths, "*.cs", _merge.IgnorePaths, _merge.IgnoreFiles.Concat(finalFiles));
+        FileScanner scanner = new(_merge.InputPaths, "*.cs", _merge.IgnorePaths, _merge.IgnoreFiles);
         foreach (ScannedFile file in scanner.ScanFiles())
         {
             _files.Add(new FileHandler(file, _config.RegionPathTrimLeft, _config.RegionPathTrimRight));
@@ -55,7 +53,7 @@ public class MergeHandler
             }
         }
 
-        finalFiles = _merge.GetFinalFiles().ToList();
+        List<string> finalFiles = _merge.GetFinalFiles().ToList();
         string[] finalPaths = finalFiles.Select(f => f.ToFullPath()).ToArray();
         _files.RemoveAll(f => finalPaths.Contains(f.FilePath.ToFullPath()));
 
