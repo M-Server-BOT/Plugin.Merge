@@ -60,7 +60,7 @@ public class MergeConfig
     
     [JsonIgnore]
     [YamlIgnore]
-    public IEnumerable<string> FinalFiles => string.IsNullOrWhiteSpace(PluginName)
+    public IEnumerable<string> GetFinalFiles() => string.IsNullOrWhiteSpace(PluginName)
         ? Enumerable.Empty<string>()
         : OutputPaths.Select(p => Path.Combine(p, $"{PluginName}.cs").ToFullPath());
 
